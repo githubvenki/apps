@@ -3,6 +3,7 @@ import cookielib
 import urllib
 import lxml
 from lxml.html import parse
+from lxml import etree
 import re
 import traceback
 
@@ -11,8 +12,15 @@ pathForPageNameMeta="//meta[@name=\"PageName\"]"
 pathForItemNumber=".//div[@class=\"item\"]/text()"
 pathForModelNumber=".//div[@class=\"model\"]/text()"
 pathForProductName=".//div[@class=\"name\"]/h3/a/text()"
-BASE_URL="http://3day.staples.com/"
+pathForAutoCorrect="//div[@class=\"details\"]/p/span[2]/text()"
+pathForItemsFound="//div[@class=\"details\"]/p/text()"
+pathForCorrectedItemsFound="//div[@class=\"details\"]/p/text()[2]"
+DOTCOM_DOMAIN="www.staples.com"
+BASE_URL="http://www.staples.com/"
 keywords=[]
+mechanize._sockettimeout._GLOBAL_DEFAULT_TIMEOUT=200
+
+
 
 def getBrowser():
 
@@ -20,8 +28,11 @@ def getBrowser():
 	# Cookie Jar
 	cj = cookielib.LWPCookieJar()
 	br.set_cookiejar(cj)
-	ck = cookielib.Cookie(version=0, name='zipcode', value='02421', port=None, port_specified=False, domain='3day.staples.com', domain_specified=False, domain_initial_dot=False, path='/', path_specified=True, secure=False, expires=None, discard=True, comment=None, comment_url=None, rest={'HttpOnly': None}, rfc2109=False)
-	cj.set_cookie(ck)
+	testck = cookielib.Cookie(version=0, name='zipcode', value='02421', port=None, port_specified=False, domain=DOTCOM_DOMAIN, domain_specified=False, domain_initial_dot=False, path='/', path_specified=True, secure=False, expires=None, discard=True, comment=None, comment_url=None, rest={'HttpOnly': None}, rfc2109=False)
+	cj.set_cookie(testck)
+	# dotcomck = cookielib.Cookie(version=0, name='zipcode', value='02421', port=None, port_specified=False, domain=DOTCOM_DOMAIN, domain_specified=False, domain_initial_dot=False, path='/', path_specified=True, secure=False, expires=None, discard=True, comment=None, comment_url=None, rest={'HttpOnly': None}, rfc2109=False)
+	# cj.set_cookie(dotcomck)
+
 
 	# Browser options
 	br.set_handle_equiv(True)
@@ -68,14 +79,14 @@ def searchKey(term):
 	
 def main():
 	print "scraping"
-	readKeywords("Autocomplete.txt")
+	readKeywords("block.txt")
 	br=getBrowser()
-	with open("Autocomplete_results.txt", "a") as out:
+	with open("ShouldBlockItems.txt", "a") as out:
 		for terms in keywords:
 			print terms
 			try:
 				sKey=sTerm=terms
-				query_param=searchKey(sKey) + "/directory_" + searchTerm(sTerm)
+				query_param=searchKey(sKey) + "/directory_" + searchTerm(sTerm) + "?rpp=72"
 				resp=br.open(BASE_URL+query_param)
 				body=parse(resp)
 				page_name=getTagValue(body, pathForPageNameMeta)
@@ -90,10 +101,21 @@ def main():
 					out.write("no results")
 					out.write("\n")
 				elif ( page_name.get('content') == "searchresults"):
+					ac = getTagValue(body, pathForAutoCorrect)
+					noofitems=0
+					if ( ac == "N/A"):
+						noofitems=getTagValue(body, pathForItemsFound)
+					elif ( ac != "N/A"):
+						noofitems=getTagValue(body, pathForCorrectedItemsFound)
+					noofitems=noofitems.replace("items found)", "").replace("(", "").strip()
 					for el in PRODUCT_ROW_CLASS(body):
 						item=getTagValue(el, pathForItemNumber).replace("Item ", "")
 						model=getTagValue(el, pathForModelNumber).replace("Model ", "")
 						out.write(terms)
+						out.write("|")
+						out.write(ac)
+						out.write("|")
+						out.write(noofitems)
 						out.write("|")
 						out.write(item)
 						out.write("|")
