@@ -79,9 +79,9 @@ def searchKey(term):
 	
 def main():
 	print "scraping"
-	readKeywords("block.txt")
+	readKeywords("input.txt")
 	br=getBrowser()
-	with open("ShouldBlockItems.txt", "a") as out:
+	with open("output.txt", "a") as out:
 		for terms in keywords:
 			print terms
 			try:
@@ -104,6 +104,7 @@ def main():
 					ac = getTagValue(body, pathForAutoCorrect)
 					noofitems=0
 					if ( ac == "N/A"):
+						ac="No correction"
 						noofitems=getTagValue(body, pathForItemsFound)
 					elif ( ac != "N/A"):
 						noofitems=getTagValue(body, pathForCorrectedItemsFound)
